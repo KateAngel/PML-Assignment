@@ -1,0 +1,87 @@
+---
+title: "Practical Machine Learning Assignment"
+author: "Kateryna Kyrpa"
+date: "06 10 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Background
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: <http://groupware.les.inf.puc-rio.br/har> (see the section on the Weight Lifting Exercise Dataset).
+
+## Data Loading and packages
+
+The training data for this project are available here:
+<https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv>
+
+The test data are available here:
+<https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv>
+
+First we need to load some required libraries. 
+```{r}
+library(lattice)
+library(ggplot2)
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+```
+Next step is loading the data and cleansing.
+```{r}
+setwd("E:/DataScience/PML")
+training_data <- read.csv('pml-training.csv', na.strings = c("NA", "#DIV/0!", ""))
+testing_data <- read.csv('pml-testing.csv', na.strings = c("NA", "#DIV/0!", ""))
+```
+
+```{r}
+training_data <- training_data[,colSums(is.na(training_data)) == 0]
+testing_data <- testing_data[,colSums(is.na(testing_data)) == 0]
+clnColumnIndex <- colSums(is.na(training_data))/nrow(training_data) < 0.95
+clean_training_data <- training_data[,clnColumnIndex]
+dim(training_data)
+dim(testing_data)
+```
+## Partitioning of the training data into training set and cross validation set
+```{r}
+train_part <- createDataPartition(training_data$classe, p = 0.75, list = FALSE)
+training <- training_data[train_part,]
+testing <- training_data[-train_part,]
+dim(training)
+dim(testing)
+```
+
+Seems like first 7 variables can be removed as they are non-numerical.
+```{r}
+training <- training[,-c(1:7)]
+testing <- testing[,-c(1:7)]
+
+ordernames <- names(training)
+testing <- testing[,ordernames[1:53]]
+dim(training)
+dim(testing)
+```
+
+## Models
+```{r pressure}
+set.seed(127)
+DTM <- train(classe ~ ., data = training, method = 'rpart')
+RF <- train(classe ~ ., data = training, method = 'rf', ntree = 100)
+
+rpart.plot(DTM$finalModel)
+```
+### Fitting and prediction
+```{r}
+DTM_predict <- predict(DTM, testing)
+confusionMatrix(table(testing$classe,DTM_predict))
+RF_predict <- predict(RF, testing)
+confusionMatrix(table(testing$classe,RF_predict))
+```
+## Conclusion
+
+The random forest model with cross-validation produces more accurate model.
+```{r}
+predict(RF, testing_data)
+```
